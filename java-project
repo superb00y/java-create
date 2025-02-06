@@ -1,0 +1,224 @@
+#!/bin/bash
+
+# Java Project Management Script
+# Version: 1.0
+# Author: superb00y
+
+# Colors for output formatting
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+NC="\033[0m" # No Color
+
+# Script usage
+usage() {
+	echo -e "${BLUE}Usage: $0 [create|add|remove|compile|build|run|clean|help]${NC}"
+	echo -e "  ${GREEN}create${NC} NAME     Create a new Java project with the given name"
+	echo -e "  ${GREEN}add${NC} CLASS       Add a new class to the current project"
+	echo -e "  ${GREEN}remove${NC} CLASS    Remove a class from the current project"
+	echo -e "  ${GREEN}add-resource${NC}    FILE|DIR  Add a file or directory to the project resources"
+	echo -e "  ${GREEN}compile${NC}         Compile the current project"
+	echo -e "  ${GREEN}build${NC}           Build the current project JAR file"
+	echo -e "  ${GREEN}run${NC}             Run the compiled project"
+	echo -e "  ${GREEN}clean${NC}           Clean the project by removing compiled files and JAR"
+	echo -e "  ${GREEN}help${NC}            Display this help message"
+}
+
+# Function to get the project directory
+get_project_dir() {
+	current_dir="$PWD"
+	while true; do
+		if [ -d "$current_dir/src/main/java/com/project" ]; then
+			project_dir="$current_dir"
+			break
+		elif [ "$current_dir" = "/" ]; then
+			echo "Error: No project found in the current or parent directories."
+			exit 1
+		fi
+		current_dir="$(dirname "$current_dir")"
+	done
+}
+
+# Function to get the project name
+get_project_name() {
+	get_project_dir
+	project_name=$(basename "$project_dir")
+	if [ ! -d "$project_dir/src/main/java/com/project/$project_name" ]; then
+		echo "Error: Invalid project structure."
+		exit 1
+	fi
+}
+
+# Function to create a new Java project
+create_project() {
+	project_name="$1"
+
+	if [ -d "$project_name" ]; then
+		echo -e "${YELLOW}Warning: Directory '$project_name' already exists. Overwrite? (y/n)${NC}"
+		read -r answer
+		if [ "$answer" != "y" ]; then
+			echo -e "${BLUE}Aborting project creation.${NC}"
+			exit 0
+		fi
+	fi
+
+	mkdir -p "$project_name" && cd "$project_name"
+
+	mkdir -p ./libs ./out ./src/main/java/com/project/"$project_name" ./src/main/resources/META-INF
+	touch ./src/main/resources/META-INF/MANIFEST.FM
+
+	echo "package com.project.$project_name; public class App { public static void main(String[] args) { System.out.println(\"Hello World\"); } }" >./src/main/java/com/project/"$project_name"/App.java
+
+	echo "Manifest-Version: 1.0" >./src/main/resources/META-INF/MANIFEST.FM
+	echo "Class-Path: ." >>./src/main/resources/META-INF/MANIFEST.FM
+	echo "Main-Class: com.project.$project_name.App" >>./src/main/resources/META-INF/MANIFEST.FM
+
+	echo -e "${GREEN}Project '$project_name' created successfully.${NC}"
+}
+
+# Function to add a new class to the project
+add_class() {
+	class_name="$1"
+
+	get_project_dir
+	project_name=$(basename "$project_dir")
+
+	if [ -f "$project_dir/src/main/java/com/project/$project_name/$class_name.java" ]; then
+		echo -e "${YELLOW}Warning: Class '$class_name' already exists. Overwrite? (y/n)${NC}"
+		read -r answer
+		if [ "$answer" != "y" ]; then
+			echo -e "${BLUE}Aborting class addition.${NC}"
+			exit 0
+		fi
+	fi
+
+	echo -e "${GREEN}Class '$class_name' added to project '$project_name'.${NC}"
+	echo "package com.project.$project_name; public class $class_name { }" >./src/main/java/com/project/"$project_name"/"$class_name".java
+}
+
+# Function to remove a class from the project
+remove_class() {
+	class_name="$1"
+
+	get_project_dir
+	project_name=$(basename "$project_dir")
+
+	if [ ! -f "$project_dir/src/main/java/com/project/$project_name/$class_name.java" ]; then
+		echo -e "${RED}Error: Class '$class_name' does not exist in project '$project_name'.${NC}"
+		exit 1
+	fi
+
+	echo -e "${YELLOW}Warning: This will permanently remove the class '$class_name'. Continue? (y/n)${NC}"
+	read -r answer
+	if [ "$answer" = "y" ]; then
+		rm "$project_dir/src/main/java/com/project/$project_name/$class_name.java"
+		echo -e "${GREEN}Class '$class_name' removed from project '$project_name'.${NC}"
+	else
+		echo -e "${BLUE}Aborting class removal.${NC}"
+	fi
+}
+
+# Function to add a resource to the project
+add_resource() {
+	resource="$1"
+
+	get_project_dir
+	project_name=$(basename "$project_dir")
+
+	if [ ! -e "$resource" ]; then
+		echo -e "${RED}Error: File or directory '$resource' does not exist.${NC}"
+		exit 1
+	fi
+
+	resource_name=$(basename "$resource")
+	resource_target="$project_dir/src/main/resources/$resource_name"
+
+	if [ -e "$resource_target" ]; then
+		echo -e "${YELLOW}Warning: Resource '$resource_name' already exists in the project. Overwrite? (y/n)${NC}"
+		read -r answer
+		if [ "$answer" != "y" ]; then
+			echo -e "${BLUE}Aborting resource addition.${NC}"
+			exit 0
+		fi
+	fi
+
+	mkdir -p "$project_dir/src/main/resources"
+	cp -r "$resource" "$project_dir/src/main/resources/"
+
+	echo -e "${GREEN}Resource '$resource_name' added to project '$project_name'.${NC}"
+}
+
+# Function to compile the project
+compile_project() {
+	get_project_dir
+	project_name=$(basename "$project_dir")
+	cd "$project_dir"
+	javac -cp ./src/main/java ./src/main/java/com/project/$project_name/*.java -d ./out/
+	echo -e "${GREEN}Project compiled successfully.${NC}"
+}
+
+# Function to build the project JAR file
+build_project() {
+	get_project_dir
+	project_name=$(basename "$project_dir")
+	cd "$project_dir"
+	jar cvfm $project_name.jar ./src/main/resources/META-INF/MANIFEST.FM -C ./out/ .
+	echo -e "${GREEN}Project JAR file built successfully.${NC}"
+}
+
+# Function to run the compiled project
+run_project() {
+	get_project_dir
+	cd "$project_dir"
+	project_name=$(basename "$project_dir")
+	java -cp "$project_name.jar" com.project."$project_name".App
+}
+
+# Function to clean the project
+clean_project() {
+	get_project_dir
+	cd "$project_dir"
+	rm -rf ./out/* "$project_name.jar"
+	echo -e "${GREEN}Project cleaned successfully.${NC}"
+}
+
+# Main script logic
+case "$1" in
+create)
+	shift
+	create_project "$@"
+	;;
+add)
+	shift
+	add_class "$@"
+	;;
+remove)
+	shift
+	remove_class "$@"
+	;;
+add-resource)
+	shift
+	add_resource "$@"
+	;;
+compile)
+	compile_project
+	;;
+build)
+	build_project
+	;;
+run)
+	run_project
+	;;
+clean)
+	clean_project
+	;;
+help)
+	usage
+	;;
+*)
+	echo -e "${RED}Error: Invalid command.${NC}"
+	usage
+	exit 1
+	;;
+esac
