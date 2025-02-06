@@ -68,11 +68,11 @@ create_project() {
 	mkdir -p ./libs ./out ./src/main/java/com/project/"$project_name" ./src/main/resources/META-INF
 	touch ./src/main/resources/META-INF/MANIFEST.FM
 
-	echo "package com.project.$project_name; public class App { public static void main(String[] args) { System.out.println(\"Hello World\"); } }" >./src/main/java/com/project/"$project_name"/App.java
+	echo "package com.project.$project_name; public class Main { public static void main(String[] args) { System.out.println(\"Hello World\"); } }" >./src/main/java/com/project/"$project_name"/Main.java
 
 	echo "Manifest-Version: 1.0" >./src/main/resources/META-INF/MANIFEST.FM
 	echo "Class-Path: ." >>./src/main/resources/META-INF/MANIFEST.FM
-	echo "Main-Class: com.project.$project_name.App" >>./src/main/resources/META-INF/MANIFEST.FM
+	echo "Main-Class: com.project.$project_name.Main" >>./src/main/resources/META-INF/MANIFEST.FM
 
 	echo -e "${GREEN}Project '$project_name' created successfully.${NC}"
 }
@@ -172,7 +172,7 @@ run_project() {
 	get_project_dir
 	cd "$project_dir"
 	project_name=$(basename "$project_dir")
-	java -cp "$project_name.jar" com.project."$project_name".App
+	java -cp "$project_name.jar" com.project."$project_name".Main
 }
 
 # Function to clean the project
